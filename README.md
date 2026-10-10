@@ -1,1 +1,1 @@
-# 7th_sem_project
+# 7th_sem_project_2026
