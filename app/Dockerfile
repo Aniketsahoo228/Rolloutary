@@ -1,43 +1,21 @@
-# Multi-stage Dockerfile for Node.js production image
-# Stage 1: Install dependencies
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
 
-# Stage 2: Build
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY src/ ./src/
+# Use a lightweight Node.js runtime
+FROM node:24-alpine
 
-# Stage 3: Production image (minimal)
-FROM node:20-alpine AS runner
+# Set the working directory inside the container
 WORKDIR /app
 
-# Security: run as non-root user
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/src ./src
+# Copy application metadata
 COPY package.json ./
 
-USER appuser
+# Copy application source code
+COPY src/ ./src/
 
-ARG NODE_ENV=production
-ARG BUILD_DATE
-ARG VCS_REF
+# Run as a non-root user for better security
+USER node
 
-ENV NODE_ENV=${NODE_ENV}
-
-LABEL org.opencontainers.image.created="${BUILD_DATE}" \
-      org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.source="https://iamdevbox.com/posts/setting-up-a-cicd-pipeline-to-kubernetes-with-github-actions/"
-
+# Document the port used by the application
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:8080/health || exit 1
-
+# Start the Rolloutary application
 CMD ["node", "src/index.js"]

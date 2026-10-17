@@ -1,13 +1,13 @@
+
 {
-  "name": "github-actions-k8s-deploy-demo",
+  "name": "rolloutary",
   "version": "1.0.0",
-  "description": "Demo Node.js app for CI/CD pipeline to Kubernetes tutorial",
+  "description": "Node.js application for the Rolloutary cloud deployment platform",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "lint": "echo 'Linting...'",
-    "test": "node --test src/index.test.js || true",
-    "test:integration": "echo 'Integration tests passed'"
+    "test": "node --test src/index.test.js",
+    "lint": "node --check src/index.js"
   },
   "engines": {
     "node": ">=20"

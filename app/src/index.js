@@ -1,46 +1,101 @@
+
 'use strict';
 
-const http = require('http');
+const http = require('node:http');
 
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
 
-// Simple in-memory readiness gate — set to false during graceful shutdown
-let isReady = true;
+function createServer() {
+  let isReady = true;
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
-    return;
-  }
+  const server = http.createServer((req, res) => {
+    if (req.url === '/health') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+      });
 
-  if (req.url === '/ready') {
-    if (!isReady) {
-      res.writeHead(503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'not ready' }));
+      res.end(JSON.stringify({
+        status: 'ok',
+        uptime: process.uptime(),
+      }));
       return;
     }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ready' }));
-    return;
-  }
 
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ message: 'Hello from IAMDevBox demo app!' }));
-});
+    if (req.url === '/ready') {
+      if (!isReady) {
+        res.writeHead(503, {
+          'Content-Type': 'application/json',
+        });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+        res.end(JSON.stringify({
+          status: 'not ready',
+        }));
+        return;
+      }
 
-// Graceful shutdown: stop accepting new requests, drain in-flight
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received — starting graceful shutdown');
-  isReady = false;
-  setTimeout(() => {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+      });
+
+      res.end(JSON.stringify({
+        status: 'ready',
+      }));
+      return;
+    }
+
+    if (req.url === '/') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+      });
+
+      res.end(JSON.stringify({
+        message: 'Welcome to Rolloutary',
+      }));
+      return;
+    }
+
+    res.writeHead(404, {
+      'Content-Type': 'application/json',
+    });
+
+    res.end(JSON.stringify({
+      error: 'Not found',
+    }));
+  });
+
+  return {
+    server,
+    beginShutdown() {
+      isReady = false;
+    },
+  };
+}
+
+if (require.main === module) {
+  const { server, beginShutdown } = createServer();
+
+  server.listen(PORT, () => {
+    console.log(`Rolloutary server running on port ${PORT}`);
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received; starting graceful shutdown');
+
+    beginShutdown();
+
+    const forceShutdown = setTimeout(() => {
+      server.closeAllConnections();
+      process.exit(1);
+    }, 10000);
+
+    forceShutdown.unref();
+
     server.close(() => {
-      console.log('Server closed');
+      clearTimeout(forceShutdown);
+      console.log('Rolloutary server closed');
       process.exit(0);
     });
-  }, 5000); // 5s drain window matches terminationGracePeriodSeconds
-});
+  });
+}
+
+module.exports = { createServer };
