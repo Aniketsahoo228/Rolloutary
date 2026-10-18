@@ -105,7 +105,7 @@ jobs:
       - name: Deploy published image
         shell: powershell
         run: |
-          $image = "ghcr.io/${{ github.repository }}:sha-${{ github.sha }}"
+          $image = "ghcr.io/aniketsahoo228/rolloutary:sha-${{ github.sha }}"
           kubectl set image deployment/myapp myapp=$image -n staging
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to update the staging deployment"
