@@ -84,3 +84,38 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-staging:
+    name: Deploy to Kubernetes staging
+    needs: build-and-publish
+    runs-on: [self-hosted, Windows, X64]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Kubernetes connection
+        shell: powershell
+        run: |
+          kubectl cluster-info
+          kubectl get namespace staging
+
+      - name: Deploy published image
+        shell: powershell
+        run: |
+          $image = "ghcr.io/${{ github.repository }}:sha-${{ github.sha }}"
+          kubectl set image deployment/myapp myapp=$image -n staging
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to update the staging deployment"
+          }
+
+      - name: Verify rollout
+        shell: powershell
+        run: |
+          kubectl rollout status deployment/myapp -n staging --timeout=180s
+          if ($LASTEXITCODE -ne 0) {
+            throw "Staging rollout failed"
+          }
+          kubectl get pods -n staging -l app=myapp
