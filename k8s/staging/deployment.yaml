@@ -27,7 +27,7 @@ spec:
       containers:
       - name: myapp
         # IMAGE_TAG is replaced by CI pipeline with the actual git SHA
-        image: ghcr.io/YOUR_ORG/YOUR_REPO:IMAGE_TAG
+        image: ghcr.io/aniketsahoo228/rolloutary:sha-f028366
         ports:
         - containerPort: 8080
         env:
