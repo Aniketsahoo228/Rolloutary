@@ -74,7 +74,7 @@ function createServer() {
 if (require.main === module) {
   const { server, beginShutdown } = createServer();
 
-  server.listen(PORT, () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`Rolloutary server running on port ${PORT}`);
   });
 
