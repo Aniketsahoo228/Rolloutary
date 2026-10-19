@@ -47,8 +47,11 @@
           <div class="canvas">
             <div id="pipeline-message" class="pipeline-empty muted">Loading real workflow data…</div>
             <div id="pipeline-viewport" class="pipeline-viewport" hidden>
-              <p class="canvas-note">Jobs appear in the order GitHub returns them. This sequence does not show job dependencies.</p>
-              <div id="pipeline-graph" class="pipeline-graph" aria-label="Workflow jobs"></div>
+              <p class="canvas-note">Sequence view: jobs appear in the order GitHub returns them. Arrows show list order, not job dependencies.</p>
+              <div id="flow-wrap" class="flow-wrap">
+                <svg id="pipeline-edges" class="edges" aria-hidden="true"></svg>
+                <div id="pipeline-graph" class="pipeline-graph" aria-label="Workflow jobs in sequence"></div>
+              </div>
             </div>
           </div>
         </section>
@@ -129,6 +132,68 @@
       return badge;
     }
 
+    const stateGlyphs = { success: '✓', failure: '✕', running: '●', queued: '…', waiting: '…', cancelled: '■', skipped: '–' };
+    const edgesSvg = document.getElementById('pipeline-edges');
+    const flowWrap = document.getElementById('flow-wrap');
+    let edgeFrame = null;
+
+    function svgEl(name, attrs) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+      Object.entries(attrs || {}).forEach(([key, value]) => el.setAttribute(key, value));
+      return el;
+    }
+
+    // Connectors are measured from the rendered tiles, so they stay aligned when layout changes.
+    function updateScrollCue() {
+      pipelineViewport.classList.toggle('more', pipelineViewport.scrollWidth - pipelineViewport.clientWidth - pipelineViewport.scrollLeft > 4);
+    }
+
+    function drawEdges() {
+      updateScrollCue();
+      edgesSvg.replaceChildren();
+      edgesSvg.setAttribute('width', flowWrap.offsetWidth);
+      edgesSvg.setAttribute('height', flowWrap.offsetHeight);
+      const nodes = [...pipelineGraph.children];
+      if (nodes.length < 2) return;
+
+      const defs = svgEl('defs');
+      [['edge-arrow', 'arrow'], ['edge-arrow-run', 'arrow run']].forEach(([id, cls]) => {
+        const marker = svgEl('marker', { id, viewBox: '0 0 10 10', refX: '8', refY: '5', markerWidth: '7', markerHeight: '7', orient: 'auto' });
+        marker.appendChild(svgEl('path', { d: 'M1 1.5L8.5 5 1 8.5z', class: cls }));
+        defs.appendChild(marker);
+      });
+      edgesSvg.appendChild(defs);
+
+      const base = flowWrap.getBoundingClientRect();
+      for (let i = 0; i < nodes.length - 1; i++) {
+        const from = nodes[i].querySelector('.tile').getBoundingClientRect();
+        const to = nodes[i + 1].querySelector('.tile').getBoundingClientRect();
+        const x1 = from.right - base.left + 5;
+        const y1 = from.top + from.height / 2 - base.top;
+        const x2 = to.left - base.left - 6;
+        const y2 = to.top + to.height / 2 - base.top;
+        const mid = (x1 + x2) / 2;
+        const running = nodes[i + 1].classList.contains('running');
+        edgesSvg.appendChild(svgEl('path', {
+          class: running ? 'edge running' : 'edge',
+          d: `M${x1} ${y1} C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`,
+          'marker-end': `url(#${running ? 'edge-arrow-run' : 'edge-arrow'})`
+        }));
+      }
+    }
+
+    const scheduleEdges = () => {
+      cancelAnimationFrame(edgeFrame);
+      edgeFrame = requestAnimationFrame(drawEdges);
+    };
+
+    function makePort(side) {
+      const port = document.createElement('span');
+      port.className = `port ${side}`;
+      port.setAttribute('aria-hidden', 'true');
+      return port;
+    }
+
     function renderJobs(jobs) {
       const focusedId = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.jobId : null;
       jobsById.clear();
@@ -141,31 +206,41 @@
         node.type = 'button';
         node.className = `pipeline-node ${stateName}`;
         node.dataset.jobId = job.id;
+        node.title = job.name;
         node.setAttribute('aria-label', `Inspect ${job.name}, ${statusLabels[stateName] || stateName}`);
-        const head = document.createElement('div');
-        head.className = 'pipeline-node-head';
-        const icon = document.createElement('span');
-        icon.className = 'pipeline-node-icon';
-        icon.textContent = String(index + 1).padStart(2, '0');
+
+        const tile = document.createElement('span');
+        tile.className = 'tile';
+        const seq = document.createElement('span');
+        seq.className = 'seq';
+        seq.textContent = String(index + 1).padStart(2, '0');
+        const glyph = document.createElement('span');
+        glyph.className = 'node-glyph';
+        glyph.setAttribute('aria-hidden', 'true');
+        glyph.textContent = stateGlyphs[stateName] || '?';
+        tile.append(seq, glyph);
+        if (index > 0) tile.appendChild(makePort('in'));
+        if (index < jobs.length - 1) tile.appendChild(makePort('out'));
+
         const name = document.createElement('span');
         name.className = 'pipeline-node-name';
         name.textContent = job.name;
-        head.append(icon, name);
-        const meta = document.createElement('div');
-        meta.className = 'pipeline-node-meta';
-        const state = makeState(job);
+        const stateText = document.createElement('span');
+        stateText.className = 'pipeline-node-state';
+        stateText.textContent = statusLabels[stateName] || stateName;
         const elapsed = document.createElement('span');
         elapsed.className = 'pipeline-node-duration';
         elapsed.dataset.durationFor = job.id;
         elapsed.textContent = duration(job.startedAt, job.completedAt);
-        meta.append(state, elapsed);
-        node.append(head, meta);
+
+        node.append(tile, name, stateText, elapsed);
         node.addEventListener('click', () => selectJob(job.id));
         pipelineGraph.appendChild(node);
       });
 
       pipelineMessage.hidden = true;
       pipelineViewport.hidden = false;
+      drawEdges();
       if (!selectedJobId || !jobsById.has(String(selectedJobId))) selectJob(jobs[0].id);
       else selectJob(selectedJobId);
       if (focusedId) {
@@ -174,6 +249,11 @@
       }
       startTimer();
     }
+
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(scheduleEdges).observe(flowWrap);
+    window.addEventListener('resize', scheduleEdges);
+    pipelineViewport.addEventListener('scroll', updateScrollCue, { passive: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleEdges);
 
     function setRefreshStatus(message, isError = false) {
       pipelineRefreshStatus.textContent = message;
