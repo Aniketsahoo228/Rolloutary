@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rolloutary | Pipeline Studio</title>
+  <link rel="stylesheet" href="/pages.css">
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand"><div class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5l5 4.5-5 4.5"/><path d="M9 3.5l4 4.5-4 4.5"/></svg></div>rolloutary</div>
+      <nav aria-label="Primary">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="/"><span aria-hidden="true">◫</span> Overview</a>
+        <a class="nav-item active" href="/pipeline" aria-current="page"><span aria-hidden="true">◇</span> Pipeline Studio</a>
+        <a class="nav-item" href="/runs"><span aria-hidden="true">↻</span> Run History</a>
+        <a class="nav-item" href="/logs"><span aria-hidden="true">≡</span> Logs &amp; Execution Details</a>
+        <a class="nav-item" href="/#pipeline"><span aria-hidden="true">⑂</span> CI/CD Pipeline</a>
+        <a class="nav-item" href="/#cluster"><span aria-hidden="true">▦</span> Kubernetes</a>
+        <a class="nav-item" href="/#deployments"><span aria-hidden="true">◷</span> Deployments</a>
+        <div class="nav-label">Application</div>
+        <a class="nav-item" href="/health"><span aria-hidden="true">♥</span> Health endpoint</a>
+        <a class="nav-item" href="/ready"><span aria-hidden="true">✓</span> Readiness endpoint</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div class="eyebrow">Workspace / Pipeline Studio</div>
+        <h1>Pipeline Studio</h1>
+        <div class="subheading">Live job topology from the selected GitHub Actions run.</div>
+      </header>
+
+      <div class="studio">
+        <section class="panel" aria-labelledby="pipeline-title">
+          <div class="panel-head"><h2 id="pipeline-title">Workflow execution</h2><span class="tag">Job sequence</span></div>
+          <div class="pipeline-toolbar">
+            <label for="run-select" class="run-picker">Run
+              <select id="run-select" disabled><option>Loading runs…</option></select>
+            </label>
+            <a id="run-link" class="btn" href="#" target="_blank" rel="noreferrer" hidden>View on GitHub</a>
+            <div class="pipeline-meta">
+              <div id="pipeline-status" class="pipeline-status" aria-live="polite">Loading workflow runs…</div>
+              <div id="pipeline-refresh-status" class="pipeline-refresh" aria-live="polite">Not refreshed yet</div>
+            </div>
+          </div>
+          <div class="canvas">
+            <div id="pipeline-message" class="pipeline-empty muted">Loading real workflow data…</div>
+            <div id="pipeline-viewport" class="pipeline-viewport" hidden>
+              <p class="canvas-note">Jobs appear in the order GitHub returns them. This sequence does not show job dependencies.</p>
+              <div id="pipeline-graph" class="pipeline-graph" aria-label="Workflow jobs"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="inspector" class="panel inspector" aria-labelledby="inspector-title">
+          <div class="panel-head"><h2 id="inspector-title">Job details</h2><span id="inspector-state" class="state">Select a job</span></div>
+          <div class="panel-body">
+            <dl class="detail-list">
+              <div><dt>Job</dt><dd id="detail-name">—</dd></div>
+              <div><dt>Status</dt><dd id="detail-status">—</dd></div>
+              <div><dt>Started</dt><dd id="detail-started">—</dd></div>
+              <div><dt>Completed</dt><dd id="detail-completed">—</dd></div>
+              <div><dt>Duration</dt><dd id="detail-duration">—</dd></div>
+            </dl>
+            <div class="steps-wrap">
+              <h3>Steps</h3>
+              <div id="step-list" class="steps"><div class="muted">No step data available.</div></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const runSelect = document.getElementById('run-select');
+    const pipelineStatus = document.getElementById('pipeline-status');
+    const pipelineMessage = document.getElementById('pipeline-message');
+    const pipelineViewport = document.getElementById('pipeline-viewport');
+    const pipelineGraph = document.getElementById('pipeline-graph');
+    const pipelineRefreshStatus = document.getElementById('pipeline-refresh-status');
+    const inspector = document.getElementById('inspector');
+    const runLink = document.getElementById('run-link');
+    const runsById = new Map();
+    const jobsById = new Map();
+    const JOB_REFRESH_INTERVAL_MS = 12000;
+    let selectedJobId = null;
+    let activeRunId = null;
+    let timerHandle = null;
+    let refreshTimerHandle = null;
+    let jobsRequest = null;
+    let jobsRequestRunId = null;
+    let queuedRunId = null;
+    let lastUpdatedAt = null;
+
+    const statusLabels = {
+      queued: 'Queued', waiting: 'Waiting', running: 'Running', success: 'Success',
+      failure: 'Failure', cancelled: 'Cancelled', skipped: 'Skipped', unknown: 'Unknown'
+    };
+
+    function stateFor(item) {
+      if (['failure', 'timed_out', 'startup_failure'].includes(item.conclusion)) return 'failure';
+      if (['success', 'cancelled', 'skipped'].includes(item.conclusion)) return item.conclusion;
+      if (item.status === 'in_progress') return 'running';
+      if (item.status === 'queued' || item.status === 'waiting') return item.status;
+      return item.conclusion || item.status || 'unknown';
+    }
+
+    function timestamp(value) {
+      return value ? new Date(value).toLocaleString() : '—';
+    }
+
+    function duration(startedAt, completedAt) {
+      if (!startedAt) return '—';
+      const started = new Date(startedAt).getTime();
+      const end = completedAt ? new Date(completedAt).getTime() : Date.now();
+      if (!Number.isFinite(started) || !Number.isFinite(end) || end < started) return '—';
+      const seconds = Math.floor((end - started) / 1000);
+      const minutes = Math.floor(seconds / 60);
+      return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
+    }
+
+    function makeState(item) {
+      const state = stateFor(item);
+      const badge = document.createElement('span');
+      badge.className = `state ${state}`;
+      badge.textContent = statusLabels[state] || state;
+      return badge;
+    }
+
+    function renderJobs(jobs) {
+      const focusedId = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.jobId : null;
+      jobsById.clear();
+      jobs.forEach((job) => jobsById.set(String(job.id), job));
+      pipelineGraph.replaceChildren();
+
+      jobs.forEach((job, index) => {
+        const stateName = stateFor(job);
+        const node = document.createElement('button');
+        node.type = 'button';
+        node.className = `pipeline-node ${stateName}`;
+        node.dataset.jobId = job.id;
+        node.setAttribute('aria-label', `Inspect ${job.name}, ${statusLabels[stateName] || stateName}`);
+        const head = document.createElement('div');
+        head.className = 'pipeline-node-head';
+        const icon = document.createElement('span');
+        icon.className = 'pipeline-node-icon';
+        icon.textContent = String(index + 1).padStart(2, '0');
+        const name = document.createElement('span');
+        name.className = 'pipeline-node-name';
+        name.textContent = job.name;
+        head.append(icon, name);
+        const meta = document.createElement('div');
+        meta.className = 'pipeline-node-meta';
+        const state = makeState(job);
+        const elapsed = document.createElement('span');
+        elapsed.className = 'pipeline-node-duration';
+        elapsed.dataset.durationFor = job.id;
+        elapsed.textContent = duration(job.startedAt, job.completedAt);
+        meta.append(state, elapsed);
+        node.append(head, meta);
+        node.addEventListener('click', () => selectJob(job.id));
+        pipelineGraph.appendChild(node);
+      });
+
+      pipelineMessage.hidden = true;
+      pipelineViewport.hidden = false;
+      if (!selectedJobId || !jobsById.has(String(selectedJobId))) selectJob(jobs[0].id);
+      else selectJob(selectedJobId);
+      if (focusedId) {
+        const again = [...pipelineGraph.children].find((n) => n.dataset.jobId === String(focusedId));
+        if (again) again.focus();
+      }
+      startTimer();
+    }
+
+    function setRefreshStatus(message, isError = false) {
+      pipelineRefreshStatus.textContent = message;
+      pipelineRefreshStatus.classList.toggle('error', isError);
+    }
+
+    function markJobsUpdated() {
+      lastUpdatedAt = new Date();
+      setRefreshStatus(`Updated ${lastUpdatedAt.toLocaleTimeString()}`);
+    }
+
+    function renderMessage(message, error = false) {
+      pipelineViewport.hidden = true;
+      pipelineMessage.hidden = false;
+      pipelineMessage.className = `pipeline-empty ${error ? 'error' : 'muted'}`;
+      pipelineMessage.textContent = message;
+    }
+
+    function selectJob(jobId) {
+      selectedJobId = String(jobId);
+      const job = jobsById.get(selectedJobId);
+      if (!job) return;
+      inspector.hidden = false;
+      document.querySelectorAll('.pipeline-node').forEach((node) => {
+        node.classList.toggle('selected', node.dataset.jobId === selectedJobId);
+        node.setAttribute('aria-pressed', String(node.dataset.jobId === selectedJobId));
+      });
+      document.getElementById('inspector-title').textContent = job.name;
+      document.getElementById('inspector-state').replaceWith(makeState(job));
+      const newState = document.querySelector('#inspector .state');
+      newState.id = 'inspector-state';
+      document.getElementById('detail-name').textContent = job.name;
+      document.getElementById('detail-status').textContent = statusLabels[stateFor(job)] || stateFor(job);
+      document.getElementById('detail-started').textContent = timestamp(job.startedAt);
+      document.getElementById('detail-completed').textContent = timestamp(job.completedAt);
+      document.getElementById('detail-duration').textContent = duration(job.startedAt, job.completedAt);
+      const stepList = document.getElementById('step-list');
+      stepList.replaceChildren();
+      if (!job.steps || !job.steps.length) {
+        const none = document.createElement('div');
+        none.className = 'muted';
+        none.textContent = 'No step information is available for this job.';
+        stepList.appendChild(none);
+        return;
+      }
+      job.steps.forEach((step) => {
+        const row = document.createElement('div');
+        row.className = 'step-row';
+        const number = document.createElement('span');
+        number.className = 'step-number';
+        number.textContent = step.number;
+        const name = document.createElement('span');
+        name.textContent = step.name;
+        const stepTime = document.createElement('span');
+        stepTime.className = 'step-time';
+        stepTime.textContent = `${statusLabels[stateFor(step)] || stateFor(step)} · ${duration(step.startedAt, step.completedAt)}`;
+        row.append(number, name, stepTime);
+        stepList.appendChild(row);
+      });
+    }
+
+    function startTimer() {
+      if (timerHandle) return;
+      timerHandle = setInterval(() => {
+        document.querySelectorAll('[data-duration-for]').forEach((element) => {
+          const job = jobsById.get(String(element.dataset.durationFor));
+          if (job && stateFor(job) === 'running') element.textContent = duration(job.startedAt, job.completedAt);
+        });
+        const job = jobsById.get(String(selectedJobId));
+        if (job && stateFor(job) === 'running') document.getElementById('detail-duration').textContent = duration(job.startedAt, job.completedAt);
+      }, 1000);
+    }
+
+    async function loadRuns() {
+      const response = await fetch('/api/github/actions', { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'GitHub Actions data unavailable');
+      runSelect.replaceChildren();
+      (payload.runs || []).forEach((run) => {
+        const option = document.createElement('option');
+        option.value = run.id;
+        option.textContent = `${run.name} · ${run.shortCommit || 'unknown commit'} · ${run.conclusion || run.status || 'unknown'}`;
+        runSelect.appendChild(option);
+      });
+      if (!payload.runs || !payload.runs.length) throw new Error('No workflow runs are available.');
+      runSelect.disabled = false;
+      activeRunId = payload.runs[0].id;
+      runSelect.value = activeRunId;
+      payload.runs.forEach((run) => runsById.set(String(run.id), run));
+      updateRunLink();
+    }
+
+    function updateRunLink() {
+      const run = runsById.get(String(activeRunId));
+      const ok = run && typeof run.url === 'string' && run.url.startsWith('https://');
+      runLink.hidden = !ok;
+      if (ok) runLink.href = run.url;
+    }
+
+    function loadJobs(runId, { initial = false } = {}) {
+      if (!runId) return Promise.resolve();
+      if (jobsRequest) {
+        if (String(runId) !== String(jobsRequestRunId)) queuedRunId = runId;
+        return jobsRequest;
+      }
+
+      jobsRequestRunId = runId;
+      jobsRequest = (async () => {
+      pipelineStatus.textContent = 'Loading jobs…';
+      if (initial || pipelineViewport.hidden) renderMessage('Loading real job data…');
+      const response = await fetch(`/api/github/actions/${encodeURIComponent(runId)}/jobs`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Job data unavailable');
+      if (String(runId) !== String(activeRunId)) return;
+      if (!payload.jobs || !payload.jobs.length) {
+        pipelineStatus.textContent = 'No jobs reported';
+        renderMessage('No job data is available for this workflow run.');
+        markJobsUpdated();
+        return;
+      }
+      pipelineStatus.textContent = `Showing ${payload.jobs.length} actual job(s)`;
+      renderJobs(payload.jobs);
+      markJobsUpdated();
+      })();
+
+      return jobsRequest.finally(() => {
+        jobsRequest = null;
+        jobsRequestRunId = null;
+        const nextRunId = queuedRunId;
+        queuedRunId = null;
+        if (nextRunId && String(nextRunId) === String(activeRunId)) {
+          loadJobs(nextRunId).catch(handleRefreshError);
+        }
+      });
+    }
+
+    function handleRefreshError(error) {
+      const message = error.message || 'Unable to refresh job data.';
+      if (pipelineViewport.hidden) {
+        pipelineStatus.textContent = 'Unavailable';
+        renderMessage(message, true);
+      } else {
+        pipelineStatus.textContent = 'Showing last available data';
+        const lastUpdated = lastUpdatedAt ? lastUpdatedAt.toLocaleTimeString() : 'never';
+        setRefreshStatus(`Refresh unavailable · last updated ${lastUpdated}`, true);
+      }
+    }
+
+    function startRefreshTimer() {
+      if (refreshTimerHandle) return;
+      refreshTimerHandle = setInterval(() => {
+        if (!document.hidden && activeRunId) {
+          loadJobs(activeRunId).catch(handleRefreshError);
+        }
+      }, JOB_REFRESH_INTERVAL_MS);
+    }
+
+    function stopTimers() {
+      if (timerHandle) {
+        clearInterval(timerHandle);
+        timerHandle = null;
+      }
+      if (refreshTimerHandle) {
+        clearInterval(refreshTimerHandle);
+        refreshTimerHandle = null;
+      }
+    }
+
+    runSelect.addEventListener('change', () => {
+      activeRunId = runSelect.value;
+      selectedJobId = null;
+      updateRunLink();
+      loadJobs(activeRunId, { initial: true }).catch(handleRefreshError);
+    });
+
+    (async () => {
+      try {
+        await loadRuns();
+        await loadJobs(activeRunId, { initial: true });
+        startRefreshTimer();
+      } catch (error) {
+        handleRefreshError(error);
+      }
+    })();
+
+    window.addEventListener('pagehide', stopTimers, { once: true });
+  </script>
+</body>
+</html>

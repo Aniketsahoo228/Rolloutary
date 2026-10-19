@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rolloutary | Logs &amp; Execution Details</title>
+  <link rel="stylesheet" href="/pages.css">
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand"><div class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5l5 4.5-5 4.5"/><path d="M9 3.5l4 4.5-4 4.5"/></svg></div>rolloutary</div>
+      <nav aria-label="Primary">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="/"><span aria-hidden="true">◫</span> Overview</a>
+        <a class="nav-item" href="/pipeline"><span aria-hidden="true">◇</span> Pipeline Studio</a>
+        <a class="nav-item" href="/runs"><span aria-hidden="true">↻</span> Run History</a>
+        <a class="nav-item active" href="/logs" aria-current="page"><span aria-hidden="true">≡</span> Logs &amp; Execution Details</a>
+        <a class="nav-item" href="/#pipeline"><span aria-hidden="true">⑂</span> CI/CD Pipeline</a>
+        <a class="nav-item" href="/#cluster"><span aria-hidden="true">▦</span> Kubernetes</a>
+        <a class="nav-item" href="/#deployments"><span aria-hidden="true">◷</span> Deployments</a>
+        <div class="nav-label">Application</div>
+        <a class="nav-item" href="/health"><span aria-hidden="true">♥</span> Health endpoint</a>
+        <a class="nav-item" href="/ready"><span aria-hidden="true">✓</span> Readiness endpoint</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div class="eyebrow">Workspace / Logs &amp; Execution Details</div>
+        <h1>Logs &amp; Execution Details</h1>
+        <div class="subheading">Inspect the selected workflow execution when detail APIs are available.</div>
+      </header>
+      <div class="logs-layout">
+        <section class="panel" aria-labelledby="logs-title">
+          <div class="panel-head"><h2 id="logs-title">Execution output</h2><span class="tag" id="logs-status">Loading runs</span></div>
+          <div class="pipeline-toolbar log-toolbar">
+            <label class="run-picker" for="logs-run-select">Run
+              <select id="logs-run-select" disabled aria-label="Select workflow run"></select>
+            </label>
+            <label class="run-picker" for="logs-job-select">Job
+              <select id="logs-job-select" disabled aria-label="Select workflow job"></select>
+            </label>
+          </div>
+          <div class="log-well">
+            <div class="glyph" aria-hidden="true">≡</div>
+            <strong id="logs-message">Loading workflow runs…</strong>
+            <p class="muted" id="logs-description">Select a workflow run and job to inspect the real GitHub Actions output.</p>
+            <pre class="log-output" id="log-output" hidden></pre>
+            <div class="actions"><a class="btn" href="/pipeline">Open Pipeline Studio</a><a class="btn" href="/runs">Open Run History</a></div>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="avail-title">
+          <div class="panel-head"><h2 id="avail-title">Execution data</h2></div>
+          <div class="panel-body">
+            <dl class="detail-list">
+              <div><dt><a href="/runs">Run summaries</a></dt><dd><span class="state success">Available</span></dd></div>
+              <div><dt><a href="/pipeline">Job and step status</a></dt><dd><span class="state success">Available</span></dd></div>
+              <div><dt>Log output</dt><dd><span class="state">Not available</span></dd></div>
+            </dl>
+            <p class="notice">Log output is retrieved from GitHub for the selected job. Logs may be unavailable after GitHub’s retention period or when access is denied.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script>
+    (() => {
+      const runSelect = document.getElementById('logs-run-select');
+      const jobSelect = document.getElementById('logs-job-select');
+      const status = document.getElementById('logs-status');
+      const message = document.getElementById('logs-message');
+      const description = document.getElementById('logs-description');
+      const output = document.getElementById('log-output');
+      let requestVersion = 0;
+
+      function setMessage(title, detail, tag = 'Unavailable') {
+        status.textContent = tag;
+        message.textContent = title;
+        description.textContent = detail;
+        output.hidden = true;
+        output.textContent = '';
+      }
+
+      async function readResponse(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'The request failed.');
+          return data;
+        }
+        if (!response.ok) throw new Error('The request failed.');
+        return response.text();
+      }
+
+      async function loadLogs(version) {
+        const runId = runSelect.value;
+        const jobId = jobSelect.value;
+        if (!runId || !jobId) {
+          setMessage('No job selected', 'Select a workflow run with available jobs to inspect its output.', 'No job');
+          return;
+        }
+        status.textContent = 'Loading logs';
+        message.textContent = 'Loading execution output…';
+        description.textContent = 'Requesting the selected job log from GitHub.';
+        output.hidden = true;
+        try {
+          const response = await fetch(`/api/github/actions/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(jobId)}/logs`);
+          const logs = await readResponse(response);
+          if (version !== requestVersion) return;
+          if (!logs.trim()) {
+            setMessage('No log output returned', 'GitHub returned an empty log archive for this job.', 'Empty');
+            return;
+          }
+          status.textContent = 'Available';
+          message.textContent = 'Job log output';
+          description.textContent = 'Output returned by GitHub Actions for the selected job.';
+          output.textContent = logs;
+          output.hidden = false;
+        } catch (error) {
+          if (version !== requestVersion) return;
+          setMessage('Log output unavailable', error.message, 'Unavailable');
+        }
+      }
+
+      async function loadJobs(version) {
+        const runId = runSelect.value;
+        jobSelect.replaceChildren();
+        jobSelect.disabled = true;
+        if (!runId) {
+          setMessage('No workflow run selected', 'There are no workflow runs available to inspect.', 'No run');
+          return;
+        }
+        status.textContent = 'Loading jobs';
+        message.textContent = 'Loading jobs…';
+        description.textContent = 'Requesting jobs for the selected workflow run.';
+        try {
+          const response = await fetch(`/api/github/actions/${encodeURIComponent(runId)}/jobs`);
+          const data = await readResponse(response);
+          if (version !== requestVersion) return;
+          (data.jobs || []).forEach((job) => {
+            const option = document.createElement('option');
+            option.value = job.id;
+            option.textContent = `${job.name} — ${job.conclusion || job.status || 'unknown'}`;
+            jobSelect.append(option);
+          });
+          if (!jobSelect.options.length) {
+            setMessage('No jobs available', 'GitHub returned no jobs for this workflow run.', 'Empty');
+            return;
+          }
+          jobSelect.disabled = false;
+          await loadLogs(version);
+        } catch (error) {
+          if (version !== requestVersion) return;
+          setMessage('Jobs unavailable', error.message, 'Error');
+        }
+      }
+
+      async function loadRuns() {
+        status.textContent = 'Loading runs';
+        try {
+          const response = await fetch('/api/github/actions');
+          const data = await readResponse(response);
+          const runs = data.runs || [];
+          runs.forEach((run) => {
+            const option = document.createElement('option');
+            option.value = run.id;
+            option.textContent = `${run.workflowName || run.name} — ${run.conclusion || run.status || 'unknown'} (${run.shortCommit || 'no commit'})`;
+            runSelect.append(option);
+          });
+          if (!runs.length) {
+            setMessage('No workflow runs available', 'GitHub returned no workflow runs to inspect.', 'Empty');
+            return;
+          }
+          runSelect.disabled = false;
+          requestVersion += 1;
+          await loadJobs(requestVersion);
+        } catch (error) {
+          setMessage('Workflow runs unavailable', error.message, 'Error');
+        }
+      }
+
+      runSelect.addEventListener('change', () => {
+        requestVersion += 1;
+        loadJobs(requestVersion);
+      });
+      jobSelect.addEventListener('change', () => {
+        requestVersion += 1;
+        loadLogs(requestVersion);
+      });
+      loadRuns();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rolloutary | Run History</title>
+  <link rel="stylesheet" href="/pages.css">
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand"><div class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5l5 4.5-5 4.5"/><path d="M9 3.5l4 4.5-4 4.5"/></svg></div>rolloutary</div>
+      <nav aria-label="Primary">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item" href="/"><span aria-hidden="true">◫</span> Overview</a>
+        <a class="nav-item" href="/pipeline"><span aria-hidden="true">◇</span> Pipeline Studio</a>
+        <a class="nav-item active" href="/runs" aria-current="page"><span aria-hidden="true">↻</span> Run History</a>
+        <a class="nav-item" href="/logs"><span aria-hidden="true">≡</span> Logs &amp; Execution Details</a>
+        <a class="nav-item" href="/#pipeline"><span aria-hidden="true">⑂</span> CI/CD Pipeline</a>
+        <a class="nav-item" href="/#cluster"><span aria-hidden="true">▦</span> Kubernetes</a>
+        <a class="nav-item" href="/#deployments"><span aria-hidden="true">◷</span> Deployments</a>
+        <div class="nav-label">Application</div>
+        <a class="nav-item" href="/health"><span aria-hidden="true">♥</span> Health endpoint</a>
+        <a class="nav-item" href="/ready"><span aria-hidden="true">✓</span> Readiness endpoint</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div class="eyebrow">Workspace / Run History</div>
+        <h1>Run History</h1>
+        <div class="subheading">Recent workflow runs reported by GitHub Actions.</div>
+      </header>
+      <section class="panel">
+        <div class="panel-head"><h2>Workflow runs</h2><span class="tag" id="run-status">Loading…</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Workflow</th><th>Branch</th><th>Commit</th><th>Status</th><th>Updated</th><th>Link</th></tr></thead>
+            <tbody id="runs-body"><tr><td colspan="6" class="empty">Loading workflow runs…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const body = document.getElementById('runs-body');
+    const status = document.getElementById('run-status');
+    const labels = { success: 'Success', failure: 'Failure', cancelled: 'Cancelled', skipped: 'Skipped', running: 'Running', queued: 'Queued', waiting: 'Waiting' };
+
+    function stateFor(run) {
+      if (['failure', 'timed_out', 'startup_failure'].includes(run.conclusion)) return 'failure';
+      if (['success', 'cancelled', 'skipped'].includes(run.conclusion)) return run.conclusion;
+      if (run.status === 'in_progress') return 'running';
+      if (run.status === 'queued' || run.status === 'waiting') return run.status;
+      return run.conclusion || run.status || 'unknown';
+    }
+
+    function messageRow(text, className) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 6;
+      cell.className = className;
+      cell.textContent = text;
+      row.appendChild(cell);
+      body.replaceChildren(row);
+    }
+
+    function link(href, text, className) {
+      const a = document.createElement('a');
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      a.textContent = text;
+      if (className) a.className = className;
+      return a;
+    }
+
+    async function loadRuns() {
+      try {
+        const response = await fetch('/api/github/actions', { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'GitHub Actions API unavailable');
+
+        const runs = payload.runs || [];
+        if (!runs.length) {
+          messageRow('No workflow runs are available.', 'empty');
+          status.textContent = 'No runs';
+          return;
+        }
+
+        body.replaceChildren();
+        runs.forEach((run) => {
+          const row = document.createElement('tr');
+          const add = () => row.appendChild(document.createElement('td'));
+
+          const workflow = add();
+          workflow.textContent = run.workflowName || run.name || '—';
+          if (run.event) {
+            const event = document.createElement('span');
+            event.className = 'sub';
+            event.textContent = run.event;
+            workflow.appendChild(event);
+          }
+
+          const branch = add();
+          if (run.branch) {
+            const chip = document.createElement('span');
+            chip.className = 'branch';
+            chip.textContent = run.branch;
+            branch.appendChild(chip);
+          } else branch.textContent = '—';
+
+          const commit = add();
+          if (run.shortCommit && run.commit && payload.repository) {
+            commit.appendChild(link('https://github.com/' + payload.repository.split('/').map(encodeURIComponent).join('/') + '/commit/' + encodeURIComponent(run.commit), run.shortCommit, 'mono'));
+          } else {
+            commit.className = 'mono';
+            commit.textContent = run.shortCommit || '—';
+          }
+
+          const state = stateFor(run);
+          const badge = document.createElement('span');
+          badge.className = `state ${state}`;
+          badge.textContent = labels[state] || state;
+          add().appendChild(badge);
+
+          add().textContent = run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '—';
+
+          const linkCell = add();
+          if (typeof run.url === 'string' && run.url.startsWith('https://')) linkCell.appendChild(link(run.url, 'View'));
+          else linkCell.textContent = '—';
+
+          body.appendChild(row);
+        });
+        status.textContent = `${runs.length} run(s)`;
+      } catch (error) {
+        messageRow('Unable to load workflow runs.', 'error');
+        status.textContent = error.message || 'Unavailable';
+      }
+    }
+
+    loadRuns();
+  </script>
+</body>
+</html>
