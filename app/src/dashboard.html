@@ -1,391 +1,515 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b1020">
+  <meta name="theme-color" content="#0d0e10">
   <title>Rolloutary | DevOps Control Center</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0b1020;
-      --panel: #111a2e;
-      --border: #24324a;
-      --muted: #91a0b8;
-      --text: #edf3ff;
-      --green: #39d98a;
-      --blue: #6ba7ff;
-      --purple: #b49aff;
+      --bg: #0d0e10;
+      --surface: #131417;
+      --raised: #1a1c20;
+      --line: #24262b;
+      --line-soft: #1c1e22;
+      --text: #e6e7ea;
+      --text-2: #bcbfc6;
+      --muted: #8d9099;
+      --accent: #8f9cf0;
+      --ok: #5cc28e;
+      --ok-bg: rgba(92, 194, 142, .1);
+      --ok-line: rgba(92, 194, 142, .24);
+      --bad: #e8726d;
+      --bad-bg: rgba(232, 114, 109, .1);
+      --bad-line: rgba(232, 114, 109, .26);
+      --sans: Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
     }
 
     * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
 
     body {
       margin: 0;
       background: var(--bg);
       color: var(--text);
-      font-family: Inter, "Segoe UI", sans-serif;
+      font: 14px/1.5 var(--sans);
+      -webkit-font-smoothing: antialiased;
     }
 
-    button, a { font: inherit; }
+    a { color: var(--accent); text-decoration: none; transition: color .12s, background-color .12s; }
+    a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
 
     .layout {
       display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
+      grid-template-columns: 232px minmax(0, 1fr);
       min-height: 100vh;
     }
 
+    /* Sidebar */
     aside {
-      padding: 26px 16px;
-      border-right: 1px solid var(--border);
-      background: #0d1426;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 12px;
+      border-right: 1px solid var(--line);
+      background: var(--bg);
+      overflow-y: auto;
     }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 21px;
-      font-weight: 800;
-      letter-spacing: -.7px;
-      margin-bottom: 38px;
+      padding: 0 10px;
+      margin-bottom: 32px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -.02em;
     }
 
     .logo {
       display: grid;
       place-items: center;
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #4388ff, #a17bff);
-      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      color: var(--accent);
     }
+
+    .logo svg { display: block; }
 
     .nav-label {
-      color: #65758f;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.4px;
-      margin: 24px 10px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      margin: 24px 10px 8px;
     }
+
+    .nav-label:first-child { margin-top: 0; }
 
     .nav-item {
-      display: block;
-      padding: 11px 12px;
-      margin: 4px 0;
-      color: #aab8ce;
-      border-radius: 9px;
-      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 36px;
+      padding: 7px 10px;
+      margin: 2px 0;
+      color: var(--text-2);
+      border-radius: 6px;
       font-size: 13px;
+      white-space: nowrap;
     }
+
+    .nav-item:hover { background: var(--surface); color: var(--text); text-decoration: none; }
 
     .nav-item.active {
-      background: #1c2c49;
-      color: white;
+      background: var(--raised);
+      color: var(--text);
+      box-shadow: inset 2px 0 0 var(--accent);
     }
 
-    .nav-item span { margin-right: 10px; }
+    .nav-item span {
+      width: 16px;
+      text-align: center;
+      color: var(--muted);
+      flex: none;
+    }
 
+    .nav-item.active span { color: var(--accent); }
+
+    /* Main */
     main {
       width: 100%;
-      max-width: 1500px;
-      margin: auto;
-      padding: 32px;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 40px 48px 32px;
     }
 
     .topbar {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 16px;
-      margin-bottom: 30px;
+      margin-bottom: 32px;
     }
 
-    .eyebrow {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 8px;
-    }
+    .eyebrow { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
 
     h1 {
-      font-size: clamp(24px, 3vw, 32px);
-      letter-spacing: -1px;
+      font-size: clamp(24px, 3vw, 28px);
+      line-height: 1.2;
+      font-weight: 600;
+      letter-spacing: -.025em;
       margin: 0;
     }
 
-    h2 { font-size: 16px; margin: 0; }
+    h2 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
 
-    .subheading {
-      color: var(--muted);
-      font-size: 13px;
-      margin-top: 9px;
-    }
+    .subheading { color: var(--muted); font-size: 14px; margin-top: 8px; }
 
     .status {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 9px 12px;
-      border: 1px solid #235940;
-      background: #102b25;
-      color: #73edb1;
-      border-radius: 20px;
-      font-size: 12px;
+      min-height: 32px;
+      padding: 4px 12px;
+      border: 1px solid var(--ok-line);
+      background: var(--ok-bg);
+      color: var(--ok);
+      border-radius: 999px;
+      font-size: 13px;
       white-space: nowrap;
     }
 
-    .dot {
-      width: 7px;
-      height: 7px;
-      background: var(--green);
-      border-radius: 50%;
-      box-shadow: 0 0 10px #39d98a80;
-    }
+    .dot { width: 6px; height: 6px; background: currentColor; border-radius: 50%; flex: none; }
 
+    /* Metrics: one segmented strip */
     .metrics {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 16px;
-      margin-bottom: 22px;
+      gap: 1px;
+      margin-bottom: 24px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
     }
 
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
+    .metric { background: var(--surface); padding: 18px 20px; min-width: 0; }
+    .metric-label { color: var(--muted); font-size: 13px; }
+
+    .metric-value {
+      font-size: 22px;
+      line-height: 1.2;
+      font-weight: 600;
+      letter-spacing: -.02em;
+      margin: 10px 0 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-note { color: var(--muted); font-size: 12px; }
+    .good { color: var(--ok); }
+
+    /* Panels */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
       min-width: 0;
     }
 
-    .metric-label {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .metric-value {
-      font-size: 27px;
-      font-weight: 750;
-      margin: 14px 0 7px;
-      letter-spacing: -.7px;
-    }
-
-    .metric-note {
-      color: #9eabc0;
-      font-size: 11px;
-    }
-
-    .good { color: var(--green); }
-    .blue { color: var(--blue); }
-    .purple { color: var(--purple); }
-
-    .section-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
-      gap: 18px;
-      margin-bottom: 20px;
-    }
-
-    .section-head {
+    .panel-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 20px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--line);
     }
 
+    .panel-body { padding: 24px; }
+
     .tag {
-      padding: 5px 8px;
-      background: #1c2b43;
-      color: #9eb9e8;
-      border-radius: 6px;
-      font-size: 10px;
+      color: var(--muted);
+      font-size: 12px;
       white-space: nowrap;
     }
 
-    .pipeline {
-      display: flex;
-      align-items: stretch;
-      gap: 8px;
+    .section-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+      gap: 24px;
+      margin-bottom: 24px;
     }
 
-    .stage {
-      flex: 1;
-      min-width: 0;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 13px 8px;
-      text-align: center;
-      background: #10182a;
-    }
+    .section-grid .panel { display: flex; flex-direction: column; }
+    .section-grid .panel-body { flex: 1; display: flex; flex-direction: column; }
+
+    .stack { margin-top: 24px; }
+
+    /* Pipeline */
+    .pipeline { display: flex; align-items: flex-start; gap: 0; }
+
+    .stage { flex: 1; min-width: 0; text-align: center; }
 
     .stage-icon {
-      font-size: 20px;
-      margin-bottom: 10px;
-    }
-
-    .stage-name {
-      font-size: 11px;
-      font-weight: 650;
-      overflow-wrap: anywhere;
-    }
-
-    .stage-state {
-      font-size: 10px;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 12px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--raised);
       color: var(--muted);
-      margin-top: 7px;
+      font-size: 15px;
     }
 
-    .stage.complete { border-color: #236247; }
-    .stage.complete .stage-state { color: var(--green); }
+    .stage-name { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+    .stage-state { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .stage.complete .stage-icon { border-color: var(--ok-line); color: var(--ok); }
+    .stage.complete .stage-state { color: var(--ok); }
 
     .arrow {
-      align-self: center;
-      color: #647895;
-      font-size: 16px;
+      flex: 0 0 24px;
+      height: 1px;
+      margin-top: 18px;
+      background: var(--line);
+      font-size: 0;
+      overflow: hidden;
     }
 
     .notice {
       color: var(--muted);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.6;
-      margin-top: 15px;
+      margin: 24px 0 0;
+      max-width: 68ch;
     }
 
-    .health-list {
-      display: grid;
-      gap: 15px;
-    }
+    .section-grid .notice { margin-top: auto; padding-top: 24px; }
+
+    /* Health */
+    .health-list { display: grid; }
 
     .health-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      font-size: 12px;
+      font-size: 13px;
+      min-height: 44px;
     }
 
-    .health-label { color: #b8c5d8; }
+    .health-label { color: var(--text-2); }
 
     .health-value {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 7px;
-      color: var(--green);
+      gap: 8px;
+      color: var(--ok);
       white-space: nowrap;
     }
 
-    .divider {
-      height: 1px;
-      background: var(--border);
+    .health-value::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
     }
 
+    .health-value.pending { color: var(--muted); }
+    .health-value.neutral { color: var(--text-2); }
+    .health-value.bad { color: var(--bad); }
+
+    .divider { height: 1px; background: var(--line-soft); }
+
+    /* Tables */
     .table-wrap { overflow-x: auto; }
 
     table {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
-      font-size: 12px;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
     }
 
     th {
       color: var(--muted);
+      font-size: 12px;
       font-weight: 500;
-      padding: 12px 10px;
-      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
     }
 
     td {
-      padding: 15px 10px;
-      border-bottom: 1px solid #202c40;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line-soft);
+      color: var(--text-2);
+      vertical-align: middle;
     }
 
+    th:first-child, td:first-child { padding-left: 24px; }
+    th:last-child, td:last-child { padding-right: 24px; }
+    td:first-child { color: var(--text); font-weight: 500; }
+    tbody tr { transition: background-color .12s; }
+    tbody tr:hover { background: rgba(255, 255, 255, .02); }
     tr:last-child td { border-bottom: 0; }
 
+    #github-runs table { min-width: 760px; }
+    #github-runs-body td:last-child a { font-weight: 500; }
+    .mono { font-family: var(--mono); font-size: 12px; }
+    .empty { color: var(--muted); }
+    .error { color: var(--bad); }
+
+    #github-runs-status { margin: 0; padding: 14px 24px; border-bottom: 1px solid var(--line-soft); max-width: none; }
+
+    /* Status pills */
     .pill {
-      display: inline-block;
-      border-radius: 6px;
-      padding: 5px 8px;
-      background: #123426;
-      color: #70e9aa;
-      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 1px 9px 1px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--ok-line);
+      background: var(--ok-bg);
+      color: var(--ok);
+      font-size: 12px;
+      line-height: 20px;
+      white-space: nowrap;
     }
 
-    .pill.neutral {
-      background: #263247;
-      color: #c0cde0;
-    }
+    .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .pill.neutral { border-color: var(--line); background: rgba(255, 255, 255, .04); color: var(--text-2); }
+    .pill.bad { border-color: var(--bad-line); background: var(--bad-bg); color: var(--bad); }
+    #github-runs-body .pill { text-transform: capitalize; }
 
     .footer {
-      color: #74839b;
-      font-size: 11px;
-      text-align: center;
-      margin-top: 25px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      font-variant-numeric: tabular-nums;
     }
 
+    .header-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .updated { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+    .chart-box { padding-top: 8px; }
+    .chart-box svg { display: block; width: 100%; height: 240px; }
+    .chart-box .empty { margin: 0; padding: 16px 24px 20px; font-size: 13px; }
+    .grid { stroke: var(--line-soft); stroke-width: 1; }
+    .axis { fill: var(--muted); font: 11px var(--sans); font-variant-numeric: tabular-nums; }
+    .val { fill: var(--text-2); font: 500 11px var(--sans); font-variant-numeric: tabular-nums; }
+    .series { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
+    .pt { fill: var(--surface); stroke-width: 2; }
+    .pt.ok { stroke: var(--ok); }
+    .pt.bad { stroke: var(--bad); }
+    .pt.other { stroke: var(--muted); }
+    .panel-note { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0; padding: 8px 24px 20px; }
+
+    .rate { font-size: 36px; line-height: 1; font-weight: 600; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .rate-sub { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .runbar { display: flex; gap: 3px; margin: 20px 0 12px; }
+    .runbar span { flex: 1; height: 8px; border-radius: 2px; background: var(--line); }
+    .runbar .ok { background: var(--ok); }
+    .runbar .bad { background: var(--bad); }
+    .runbar .other { background: var(--muted); }
+    .sub { color: var(--muted); font-size: 12px; margin-left: 8px; }
+
     @media (max-width: 1050px) {
+      main { padding: 32px; }
       .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .section-grid { grid-template-columns: 1fr; }
     }
 
-    @media (max-width: 650px) {
+    @media (max-width: 820px) {
       .layout { grid-template-columns: 1fr; }
-      aside { padding: 16px; border-right: 0; border-bottom: 1px solid var(--border); }
-      .brand { margin-bottom: 15px; }
-      .nav-label, aside .nav-item:not(.active) { display: none; }
-      main { padding: 22px 15px; }
-      .topbar { align-items: flex-start; flex-direction: column; }
-      .pipeline { flex-wrap: wrap; }
-      .stage { flex: 1 1 27%; }
+      aside {
+        position: static;
+        height: auto;
+        padding: 14px 16px 10px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        overflow: visible;
+      }
+      .brand { margin-bottom: 10px; padding: 0; }
+      nav { display: flex; gap: 4px; overflow-x: auto; margin: 0 -4px; padding: 0 4px 4px; }
+      .nav-label { display: none; }
+      .nav-item { margin: 0; flex: none; }
+      main { padding: 24px 16px; }
+    }
+
+    @media (max-width: 560px) {
+      .topbar { flex-direction: column; }
+      .metric { padding: 16px; }
+      .metric-value { font-size: 20px; }
+      .panel-head { padding: 14px 16px; }
+      .panel-body { padding: 20px 16px; }
+      .panel-note { padding: 8px 16px 16px; }
+      .chart-box .empty { padding: 16px 16px 20px; }
+      .header-meta { align-items: flex-start; }
+      th:first-child, td:first-child { padding-left: 16px; }
+      th:last-child, td:last-child { padding-right: 16px; }
+      #github-runs-status { padding: 12px 16px; }
+      .pipeline { flex-wrap: wrap; row-gap: 20px; }
+      .stage { flex: 1 1 30%; }
       .arrow { display: none; }
-      .metrics { gap: 10px; }
-      .card { padding: 15px; }
-      .metric-value { font-size: 23px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
     }
   </style>
 </head>
 <body>
   <div class="layout">
     <aside>
-      <div class="brand"><div class="logo">R</div> rolloutary</div>
-      <div class="nav-label">WORKSPACE</div>
-      <a class="nav-item active" href="#overview"><span>◫</span> Overview</a>
-      <a class="nav-item" href="#pipeline"><span>⑂</span> CI/CD Pipeline</a>
-      <a class="nav-item" href="#cluster"><span>▦</span> Kubernetes</a>
-      <a class="nav-item" href="#deployments"><span>◷</span> Deployments</a>
-      <div class="nav-label">APPLICATION</div>
-      <a class="nav-item" href="/health"><span>♥</span> Health endpoint</a>
-      <a class="nav-item" href="/ready"><span>✓</span> Readiness endpoint</a>
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5l5 4.5-5 4.5"/><path d="M9 3.5l4 4.5-4 4.5"/></svg>
+        </div>
+        rolloutary
+      </div>
+      <nav aria-label="Primary">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item active" href="#overview" aria-current="page"><span aria-hidden="true">◫</span> Overview</a>
+        <a class="nav-item" href="#pipeline"><span aria-hidden="true">⑂</span> CI/CD Pipeline</a>
+        <a class="nav-item" href="#cluster"><span aria-hidden="true">▦</span> Kubernetes</a>
+        <a class="nav-item" href="#deployments"><span aria-hidden="true">◷</span> Deployments</a>
+        <div class="nav-label">Application</div>
+        <a class="nav-item" href="/health"><span aria-hidden="true">♥</span> Health endpoint</a>
+        <a class="nav-item" href="/ready"><span aria-hidden="true">✓</span> Readiness endpoint</a>
+      </nav>
     </aside>
 
     <main>
       <header class="topbar" id="overview">
         <div>
-          <div class="eyebrow">WORKSPACE / OVERVIEW</div>
+          <div class="eyebrow">Workspace / Overview</div>
           <h1>DevOps Control Center</h1>
           <div class="subheading">Your application delivery workflow, in one place.</div>
         </div>
-        <div class="status"><span class="dot"></span> Public demo online</div>
+        <div class="header-meta"><div class="status"><span class="dot"></span> Public demo online</div><div class="updated" id="header-updated">Waiting for GitHub data…</div></div>
       </header>
 
-      <section class="metrics">
-        <article class="card">
+      <section class="metrics" aria-label="Overview">
+        <article class="metric">
           <div class="metric-label">Application</div>
           <div class="metric-value good">Online</div>
           <div class="metric-note">Public Render demo</div>
         </article>
-        <article class="card">
+        <article class="metric">
           <div class="metric-label">CI/CD Provider</div>
-          <div class="metric-value blue">GitHub</div>
+          <div class="metric-value">GitHub</div>
           <div class="metric-note">GitHub Actions workflow</div>
         </article>
-        <article class="card">
+        <article class="metric">
           <div class="metric-label">Container Registry</div>
-          <div class="metric-value purple">GHCR</div>
+          <div class="metric-value">GHCR</div>
           <div class="metric-note">Docker image publishing</div>
         </article>
-        <article class="card">
+        <article class="metric">
           <div class="metric-label">Staging Replicas</div>
           <div class="metric-value">2</div>
           <div class="metric-note">Configured in local Kubernetes</div>
@@ -393,85 +517,143 @@
       </section>
 
       <section class="section-grid">
-        <article class="card" id="pipeline">
-          <div class="section-head">
+        <article class="panel" id="pipeline">
+          <div class="panel-head">
             <h2>CI/CD Pipeline</h2>
-            <span class="tag">WORKFLOW OVERVIEW</span>
+            <span class="tag">Workflow overview</span>
           </div>
-          <div class="pipeline">
-            <div class="stage complete">
-              <div class="stage-icon">⌘</div>
-              <div class="stage-name">Git Push</div>
-              <div class="stage-state">Configured</div>
+          <div class="panel-body">
+            <div class="pipeline">
+              <div class="stage complete">
+                <div class="stage-icon" aria-hidden="true">⌘</div>
+                <div class="stage-name">Git Push</div>
+                <div class="stage-state">Configured</div>
+              </div>
+              <div class="arrow" aria-hidden="true">→</div>
+              <div class="stage complete">
+                <div class="stage-icon" aria-hidden="true">✓</div>
+                <div class="stage-name">Tests</div>
+                <div class="stage-state">Configured</div>
+              </div>
+              <div class="arrow" aria-hidden="true">→</div>
+              <div class="stage complete">
+                <div class="stage-icon" aria-hidden="true">▣</div>
+                <div class="stage-name">Docker Build</div>
+                <div class="stage-state">Configured</div>
+              </div>
+              <div class="arrow" aria-hidden="true">→</div>
+              <div class="stage complete">
+                <div class="stage-icon" aria-hidden="true">◈</div>
+                <div class="stage-name">GHCR</div>
+                <div class="stage-state">Configured</div>
+              </div>
+              <div class="arrow" aria-hidden="true">→</div>
+              <div class="stage complete">
+                <div class="stage-icon" aria-hidden="true">☸</div>
+                <div class="stage-name">Kubernetes Staging</div>
+                <div class="stage-state">Configured</div>
+              </div>
             </div>
-            <div class="arrow">→</div>
-            <div class="stage complete">
-              <div class="stage-icon">✓</div>
-              <div class="stage-name">Tests</div>
-              <div class="stage-state">Configured</div>
-            </div>
-            <div class="arrow">→</div>
-            <div class="stage complete">
-              <div class="stage-icon">▣</div>
-              <div class="stage-name">Docker</div>
-              <div class="stage-state">Configured</div>
-            </div>
-            <div class="arrow">→</div>
-            <div class="stage complete">
-              <div class="stage-icon">◈</div>
-              <div class="stage-name">GHCR</div>
-              <div class="stage-state">Configured</div>
-            </div>
-            <div class="arrow">→</div>
-            <div class="stage complete">
-              <div class="stage-icon">☸</div>
-              <div class="stage-name">Kubernetes</div>
-              <div class="stage-state">Configured</div>
-            </div>
+            <p class="notice">
+              This illustrates the configured workflow. Live run status will be connected separately;
+              green stages here do not represent a real-time workflow query.
+            </p>
           </div>
-          <p class="notice">
-            This illustrates the configured workflow. Live run status will be connected separately;
-            green stages here do not represent a real-time workflow query.
-          </p>
         </article>
 
-        <article class="card" id="cluster">
-          <div class="section-head">
+        <article class="panel" id="cluster">
+          <div class="panel-head">
             <h2>Infrastructure Health</h2>
-            <span class="tag">ENDPOINT CHECKS</span>
+            <span class="tag">Endpoint checks</span>
           </div>
-          <div class="health-list">
-            <div class="health-row">
-              <span class="health-label">Public dashboard</span>
-              <span class="health-value"><span class="dot"></span> Serving</span>
+          <div class="panel-body">
+            <div class="health-list">
+              <div class="health-row">
+                <span class="health-label">Public dashboard</span>
+                <span class="health-value">Serving</span>
+              </div>
+              <div class="divider"></div>
+              <div class="health-row">
+                <span class="health-label">Health endpoint</span>
+                <span class="health-value pending" id="health-status">Checking…</span>
+              </div>
+              <div class="divider"></div>
+              <div class="health-row">
+                <span class="health-label">Readiness endpoint</span>
+                <span class="health-value pending" id="ready-status">Checking…</span>
+              </div>
+              <div class="divider"></div>
+              <div class="health-row">
+                <span class="health-label">Kubernetes cluster</span>
+                <span class="health-value neutral">Local staging</span>
+              </div>
             </div>
-            <div class="divider"></div>
-            <div class="health-row">
-              <span class="health-label">Health endpoint</span>
-              <span class="health-value" id="health-status">Checking…</span>
-            </div>
-            <div class="divider"></div>
-            <div class="health-row">
-              <span class="health-label">Readiness endpoint</span>
-              <span class="health-value" id="ready-status">Checking…</span>
-            </div>
-            <div class="divider"></div>
-            <div class="health-row">
-              <span class="health-label">Kubernetes cluster</span>
-              <span class="health-value" style="color:#b8c5d8">Local staging</span>
-            </div>
+            <p class="notice">
+              Endpoint checks are requested from this page. Local Kubernetes details are configuration,
+              not live cluster telemetry.
+            </p>
           </div>
-          <p class="notice">
-            Endpoint checks are requested from this page. Local Kubernetes details are configuration,
-            not live cluster telemetry.
-          </p>
         </article>
       </section>
 
-      <section class="card" id="deployments">
-        <div class="section-head">
+      <section class="section-grid" id="run-history">
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Run History</h2>
+            <span class="tag">Oldest to newest</span>
+          </div>
+          <div class="chart-box" id="runs-chart"><p class="empty">Loading run history…</p></div>
+          <p class="panel-note" id="runs-chart-note"></p>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Success Rate</h2>
+            <span class="tag" id="rate-scope">Recent runs</span>
+          </div>
+          <div class="panel-body">
+            <div class="rate" id="rate-value">—</div>
+            <div class="rate-sub" id="rate-sub">Loading…</div>
+            <div class="runbar" id="rate-bar" role="img" aria-label="Outcome of each recent run, oldest to newest"></div>
+            <div class="health-list">
+              <div class="health-row"><span class="health-label">Succeeded</span><span class="health-value" id="count-success">—</span></div>
+              <div class="divider"></div>
+              <div class="health-row"><span class="health-label">Failed</span><span class="health-value neutral" id="count-failed">—</span></div>
+              <div class="divider"></div>
+              <div class="health-row"><span class="health-label">Other</span><span class="health-value neutral" id="count-other">—</span></div>
+            </div>
+            <p class="notice" id="rate-note"></p>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel" id="github-runs">
+        <div class="panel-head">
+          <h2>Recent GitHub Actions</h2>
+          <span class="tag" id="workflow-refresh-tag">Live</span>
+        </div>
+        <div id="github-runs-status" class="notice" aria-live="polite">Loading recent workflow runs…</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Branch</th>
+                <th>Commit</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody id="github-runs-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel stack" id="deployments">
+        <div class="panel-head">
           <h2>Deployment Overview</h2>
-          <span class="tag">PROJECT CONFIGURATION</span>
+          <span class="tag">Project configuration</span>
         </div>
         <div class="table-wrap">
           <table>
@@ -519,50 +701,168 @@
         </div>
       </section>
 
-      <section class="card" id="github-runs" style="margin-top: 18px;">
-        <div class="section-head">
-          <h2>Recent GitHub Actions</h2>
-          <span class="tag" id="workflow-refresh-tag">LIVE</span>
-        </div>
-        <div id="github-runs-status" class="notice">Loading recent workflow runs…</div>
-        <div class="table-wrap" style="margin-top: 12px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Workflow</th>
-                <th>Branch</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Link</th>
-              </tr>
-            </thead>
-            <tbody id="github-runs-body"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <div class="footer">Rolloutary · DevOps deployment demo · <span id="updated-at">Checking endpoints…</span></div>
+      <div class="footer"><span>Rolloutary · DevOps deployment demo</span> <span id="updated-at">Checking endpoints…</span></div>
     </main>
   </div>
 
   <script>
     async function checkEndpoint(path, elementId, expectedStatus) {
       const element = document.getElementById(elementId);
+      const setState = (ok, label) => {
+        element.textContent = label;
+        element.classList.remove('pending', 'bad');
+        if (!ok) element.classList.add('bad');
+      };
 
       try {
         const response = await fetch(path, { cache: 'no-store' });
         const data = await response.json();
         const ok = response.ok && data.status === expectedStatus;
 
-        element.textContent = ok ? 'Healthy' : 'Unhealthy';
-        element.style.color = ok ? '#39d98a' : '#ff7777';
+        setState(ok, ok ? 'Healthy' : 'Unhealthy');
       } catch {
-        element.textContent = 'Unavailable';
-        element.style.color = '#ff7777';
+        setState(false, 'Unavailable');
       }
     }
 
-    function renderRuns(runs) {
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const FAILED = ['failure', 'timed_out', 'startup_failure'];
+    let lastPayload = null;
+
+    const safeUrl = (u) => (typeof u === 'string' && u.startsWith('https://') ? u : '#');
+    const outcome = (run) => (run.conclusion === 'success' ? 'ok' : FAILED.includes(run.conclusion) ? 'bad' : 'other');
+    const seconds = (run) => (Date.parse(run.updatedAt) - Date.parse(run.createdAt)) / 1000;
+    const completedRuns = () => lastPayload
+      ? lastPayload.runs
+          .filter((r) => r.status === 'completed' && Number.isFinite(seconds(r)) && seconds(r) >= 0)
+          .sort((x, y) => Date.parse(x.createdAt) - Date.parse(y.createdAt))
+      : [];
+
+    function formatDuration(total) {
+      const s = Math.round(total);
+      if (s < 60) return s + 's';
+      if (s < 3600) return Math.floor(s / 60) + 'm ' + String(s % 60).padStart(2, '0') + 's';
+      return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+    }
+
+    const tickLabel = (s) => (s === 0 ? '0' : s % 3600 === 0 ? s / 3600 + 'h' : s % 60 === 0 ? s / 60 + 'm' : formatDuration(s));
+
+    function svgEl(name, attrs, text) {
+      const el = document.createElementNS(SVG_NS, name);
+      Object.entries(attrs || {}).forEach(([key, value]) => el.setAttribute(key, value));
+      if (text !== undefined) el.textContent = text;
+      return el;
+    }
+
+    function chartMessage(text) {
+      const p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = text;
+      document.getElementById('runs-chart').replaceChildren(p);
+    }
+
+    function drawChart() {
+      if (!lastPayload) return;
+
+      const box = document.getElementById('runs-chart');
+      const note = document.getElementById('runs-chart-note');
+      const runs = completedRuns();
+      const skipped = lastPayload.runs.length - runs.length;
+
+      if (runs.length < 2) {
+        chartMessage('Not enough completed runs to draw a trend yet. At least two are needed.');
+        note.textContent = '';
+        return;
+      }
+
+      const w = Math.max(box.clientWidth || 600, 280);
+      const h = 240;
+      const m = { t: 28, r: 24, b: 48, l: 56 };
+      const durs = runs.map(seconds);
+      const maxD = Math.max(...durs);
+      const step = [30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400].find((v) => maxD / v <= 4) || 28800;
+      const top = Math.ceil(maxD / step) * step || step;
+      const x = (i) => m.l + 16 + (i * (w - m.l - m.r - 32)) / (runs.length - 1);
+      const y = (v) => m.t + (h - m.t - m.b) * (1 - v / top);
+
+      const svg = svgEl('svg', {
+        viewBox: `0 0 ${w} ${h}`,
+        role: 'img',
+        'aria-label': `Run time of the last ${runs.length} completed GitHub Actions runs, oldest to newest`
+      });
+
+      for (let v = 0; v <= top; v += step) {
+        svg.appendChild(svgEl('line', { class: 'grid', x1: m.l, x2: w - m.r, y1: y(v), y2: y(v) }));
+        svg.appendChild(svgEl('text', { class: 'axis', x: m.l - 10, y: y(v) + 4, 'text-anchor': 'end' }, tickLabel(v)));
+      }
+
+      svg.appendChild(svgEl('polyline', { class: 'series', points: runs.map((r, i) => x(i) + ',' + y(durs[i])).join(' ') }));
+
+      runs.forEach((run, i) => {
+        const g = svgEl('g');
+        const created = new Date(run.createdAt);
+        g.appendChild(svgEl('title', {}, `${run.name || 'GitHub Actions'} · ${run.shortCommit || 'no commit'} · ${run.conclusion || run.status} · ${formatDuration(durs[i])}`));
+        g.appendChild(svgEl('circle', { class: 'pt ' + outcome(run), cx: x(i), cy: y(durs[i]), r: 4.5 }));
+        g.appendChild(svgEl('text', { class: 'val', x: x(i), y: y(durs[i]) - 12, 'text-anchor': 'middle' }, formatDuration(durs[i])));
+        g.appendChild(svgEl('text', { class: 'axis', x: x(i), y: h - m.b + 18, 'text-anchor': 'middle' },
+          created.toLocaleDateString([], { month: 'short', day: 'numeric' })));
+        g.appendChild(svgEl('text', { class: 'axis', x: x(i), y: h - m.b + 32, 'text-anchor': 'middle' },
+          created.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })));
+        svg.appendChild(g);
+      });
+
+      box.replaceChildren(svg);
+      note.textContent = 'Run time is the gap between a run’s creation and its last update, so queue time or re-runs can inflate it; it is not job duration. '
+        + `The chart covers only the ${runs.length} most recent completed runs the API returned`
+        + (skipped > 0 ? ` (${skipped} unfinished or invalid run(s) excluded).` : '.');
+    }
+
+    function updateRate() {
+      if (!lastPayload) return;
+
+      const runs = completedRuns();
+      const total = lastPayload.runs.length;
+      const counts = { ok: 0, bad: 0, other: 0 };
+      const bar = document.getElementById('rate-bar');
+      bar.replaceChildren();
+
+      runs.forEach((run) => {
+        counts[outcome(run)] += 1;
+        const seg = document.createElement('span');
+        seg.className = outcome(run);
+        seg.title = `${run.name || 'GitHub Actions'} · ${run.shortCommit || 'no commit'} · ${run.conclusion || run.status}`;
+        bar.appendChild(seg);
+      });
+
+      document.getElementById('rate-scope').textContent = `Latest ${total} run${total === 1 ? '' : 's'}`;
+      document.getElementById('rate-value').textContent = runs.length ? Math.round((counts.ok / runs.length) * 100) + '%' : '—';
+      document.getElementById('rate-sub').textContent = runs.length
+        ? `${counts.ok} of ${runs.length} completed runs succeeded`
+        : 'No completed runs to measure.';
+      document.getElementById('count-success').textContent = counts.ok;
+      document.getElementById('count-failed').textContent = counts.bad;
+      document.getElementById('count-failed').className = 'health-value ' + (counts.bad > 0 ? 'bad' : 'neutral');
+      document.getElementById('count-other').textContent = counts.other;
+      document.getElementById('rate-note').textContent = `Based only on the ${total} most recent runs returned by GitHub`
+        + (lastPayload.totalCount > total ? ` (${lastPayload.totalCount} in the repository)` : '')
+        + '. This is a short window, not a long-term success rate. Bars run oldest to newest.';
+    }
+
+    function showInsightsUnavailable(message) {
+      lastPayload = null;
+      chartMessage(message);
+      document.getElementById('runs-chart-note').textContent = '';
+      document.getElementById('rate-value').textContent = '—';
+      document.getElementById('rate-sub').textContent = message;
+      document.getElementById('rate-bar').replaceChildren();
+      ['count-success', 'count-failed', 'count-other'].forEach((id) => {
+        document.getElementById(id).textContent = '—';
+      });
+      document.getElementById('rate-note').textContent = '';
+      document.getElementById('header-updated').textContent = 'GitHub data unavailable';
+    }
+
+    function renderRuns(runs, repository) {
       const tbody = document.getElementById('github-runs-body');
       const status = document.getElementById('github-runs-status');
 
@@ -571,8 +871,8 @@
       if (!runs || runs.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 5;
-        cell.style.color = '#91a0b8';
+        cell.colSpan = 6;
+        cell.className = 'empty';
         cell.textContent = 'No workflow runs found for this repository.';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -584,31 +884,54 @@
         const row = document.createElement('tr');
         const workflowCell = document.createElement('td');
         const branchCell = document.createElement('td');
+        const commitCell = document.createElement('td');
         const statusCell = document.createElement('td');
         const updatedCell = document.createElement('td');
         const linkCell = document.createElement('td');
 
         workflowCell.textContent = run.name || 'GitHub Actions';
+        if (run.event) {
+          const eventLabel = document.createElement('span');
+          eventLabel.className = 'sub';
+          eventLabel.textContent = run.event;
+          workflowCell.appendChild(eventLabel);
+        }
+
         branchCell.textContent = run.branch || 'unknown';
+        branchCell.className = 'mono';
+
+        if (run.shortCommit && run.commit && repository) {
+          const commitLink = document.createElement('a');
+          commitLink.href = 'https://github.com/' + repository.split('/').map(encodeURIComponent).join('/')
+            + '/commit/' + encodeURIComponent(run.commit);
+          commitLink.target = '_blank';
+          commitLink.rel = 'noreferrer';
+          commitLink.className = 'mono';
+          commitLink.textContent = run.shortCommit;
+          commitCell.appendChild(commitLink);
+        } else {
+          commitCell.className = 'mono';
+          commitCell.textContent = run.shortCommit || '—';
+        }
 
         const statusBadge = document.createElement('span');
         const statusText = run.conclusion || run.status || 'unknown';
         statusBadge.textContent = statusText;
-        statusBadge.className = run.conclusion === 'success' ? 'pill' : 'pill neutral';
+        statusBadge.className = run.conclusion === 'success' ? 'pill' : FAILED.includes(run.conclusion) ? 'pill bad' : 'pill neutral';
         statusCell.appendChild(statusBadge);
 
         updatedCell.textContent = run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '—';
 
         const link = document.createElement('a');
-        link.href = run.url || '#';
+        link.href = safeUrl(run.url);
         link.target = '_blank';
         link.rel = 'noreferrer';
-        link.style.color = '#6ba7ff';
         link.textContent = 'View';
         linkCell.appendChild(link);
 
         row.appendChild(workflowCell);
         row.appendChild(branchCell);
+        row.appendChild(commitCell);
         row.appendChild(statusCell);
         row.appendChild(updatedCell);
         row.appendChild(linkCell);
@@ -630,21 +953,38 @@
         }
 
         const payload = await response.json();
-        renderRuns(payload.runs || []);
+        lastPayload = {
+          runs: payload.runs || [],
+          totalCount: payload.totalCount || 0,
+          repository: payload.repository
+        };
+
+        renderRuns(lastPayload.runs, lastPayload.repository);
+        drawChart();
+        updateRate();
+
+        const fetched = new Date(payload.fetchedAt);
+        document.getElementById('header-updated').textContent =
+          'GitHub data fetched ' + (isNaN(fetched) ? new Date() : fetched).toLocaleTimeString();
       } catch (error) {
         const tbody = document.getElementById('github-runs-body');
         tbody.replaceChildren();
 
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 5;
-        cell.style.color = '#ff7777';
+        cell.colSpan = 6;
+        cell.className = 'error';
         cell.textContent = 'Unable to load workflow runs.';
         row.appendChild(cell);
         tbody.appendChild(row);
 
         status.textContent = error.message || 'Unable to load workflow runs right now.';
+        showInsightsUnavailable('Run history is unavailable right now.');
       }
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => drawChart()).observe(document.getElementById('runs-chart'));
     }
 
     Promise.all([
