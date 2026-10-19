@@ -519,6 +519,28 @@
         </div>
       </section>
 
+      <section class="card" id="github-runs" style="margin-top: 18px;">
+        <div class="section-head">
+          <h2>Recent GitHub Actions</h2>
+          <span class="tag" id="workflow-refresh-tag">LIVE</span>
+        </div>
+        <div id="github-runs-status" class="notice">Loading recent workflow runs…</div>
+        <div class="table-wrap" style="margin-top: 12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Branch</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody id="github-runs-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <div class="footer">Rolloutary · DevOps deployment demo · <span id="updated-at">Checking endpoints…</span></div>
     </main>
   </div>
@@ -540,13 +562,103 @@
       }
     }
 
+    function renderRuns(runs) {
+      const tbody = document.getElementById('github-runs-body');
+      const status = document.getElementById('github-runs-status');
+
+      tbody.replaceChildren();
+
+      if (!runs || runs.length === 0) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.style.color = '#91a0b8';
+        cell.textContent = 'No workflow runs found for this repository.';
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        status.textContent = 'No recent GitHub Actions runs were returned.';
+        return;
+      }
+
+      runs.forEach((run) => {
+        const row = document.createElement('tr');
+        const workflowCell = document.createElement('td');
+        const branchCell = document.createElement('td');
+        const statusCell = document.createElement('td');
+        const updatedCell = document.createElement('td');
+        const linkCell = document.createElement('td');
+
+        workflowCell.textContent = run.name || 'GitHub Actions';
+        branchCell.textContent = run.branch || 'unknown';
+
+        const statusBadge = document.createElement('span');
+        const statusText = run.conclusion || run.status || 'unknown';
+        statusBadge.textContent = statusText;
+        statusBadge.className = run.conclusion === 'success' ? 'pill' : 'pill neutral';
+        statusCell.appendChild(statusBadge);
+
+        updatedCell.textContent = run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '—';
+
+        const link = document.createElement('a');
+        link.href = run.url || '#';
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.style.color = '#6ba7ff';
+        link.textContent = 'View';
+        linkCell.appendChild(link);
+
+        row.appendChild(workflowCell);
+        row.appendChild(branchCell);
+        row.appendChild(statusCell);
+        row.appendChild(updatedCell);
+        row.appendChild(linkCell);
+        tbody.appendChild(row);
+      });
+
+      status.textContent = `Showing ${runs.length} recent workflow run(s).`;
+    }
+
+    async function loadGitHubRuns() {
+      const status = document.getElementById('github-runs-status');
+
+      try {
+        const response = await fetch('/api/github/actions', { cache: 'no-store' });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'GitHub Actions API unavailable');
+        }
+
+        const payload = await response.json();
+        renderRuns(payload.runs || []);
+      } catch (error) {
+        const tbody = document.getElementById('github-runs-body');
+        tbody.replaceChildren();
+
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.style.color = '#ff7777';
+        cell.textContent = 'Unable to load workflow runs.';
+        row.appendChild(cell);
+        tbody.appendChild(row);
+
+        status.textContent = error.message || 'Unable to load workflow runs right now.';
+      }
+    }
+
     Promise.all([
       checkEndpoint('/health', 'health-status', 'ok'),
-      checkEndpoint('/ready', 'ready-status', 'ready')
+      checkEndpoint('/ready', 'ready-status', 'ready'),
+      loadGitHubRuns()
     ]).finally(() => {
       document.getElementById('updated-at').textContent =
         'Endpoint checks completed at ' + new Date().toLocaleTimeString();
     });
+
+    setInterval(() => {
+      loadGitHubRuns();
+    }, 60000);
   </script>
 </body>
 </html>
