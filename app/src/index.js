@@ -2,16 +2,31 @@
 'use strict';
 
 const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const PORT = Number(process.env.PORT) || 8080;
+const dashboardPath = path.join(__dirname, 'dashboard.html');
 
 function createServer() {
   let isReady = true;
 
   const server = http.createServer((req, res) => {
-    if (req.url === '/health') {
+    const url = new URL(req.url, 'http://localhost');
+
+    if (req.method !== 'GET') {
+      res.writeHead(405, {
+        'Content-Type': 'application/json',
+        'Allow': 'GET',
+      });
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+
+    if (url.pathname === '/health') {
       res.writeHead(200, {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
       });
 
       res.end(JSON.stringify({
@@ -21,46 +36,49 @@ function createServer() {
       return;
     }
 
-    if (req.url === '/ready') {
+    if (url.pathname === '/ready') {
       if (!isReady) {
         res.writeHead(503, {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
         });
 
-        res.end(JSON.stringify({
-          status: 'not ready',
-        }));
+        res.end(JSON.stringify({ status: 'not ready' }));
         return;
       }
 
       res.writeHead(200, {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
       });
 
-      res.end(JSON.stringify({
-        status: 'ready',
-      }));
+      res.end(JSON.stringify({ status: 'ready' }));
       return;
     }
 
-    if (req.url === '/') {
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-      });
+    if (url.pathname === '/') {
+      fs.readFile(dashboardPath, (error, html) => {
+        if (error) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+          });
+          res.end(JSON.stringify({ error: 'Dashboard unavailable' }));
+          return;
+        }
 
-      res.end(JSON.stringify({
-        message: 'Welcome to Rolloutary',
-      }));
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache',
+        });
+        res.end(html);
+      });
       return;
     }
 
     res.writeHead(404, {
       'Content-Type': 'application/json',
     });
-
-    res.end(JSON.stringify({
-      error: 'Not found',
-    }));
+    res.end(JSON.stringify({ error: 'Not found' }));
   });
 
   return {
@@ -80,7 +98,6 @@ if (require.main === module) {
 
   process.on('SIGTERM', () => {
     console.log('SIGTERM received; starting graceful shutdown');
-
     beginShutdown();
 
     const forceShutdown = setTimeout(() => {

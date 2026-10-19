@@ -1,0 +1,552 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1020">
+  <title>Rolloutary | DevOps Control Center</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #111a2e;
+      --border: #24324a;
+      --muted: #91a0b8;
+      --text: #edf3ff;
+      --green: #39d98a;
+      --blue: #6ba7ff;
+      --purple: #b49aff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", sans-serif;
+    }
+
+    button, a { font: inherit; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      padding: 26px 16px;
+      border-right: 1px solid var(--border);
+      background: #0d1426;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -.7px;
+      margin-bottom: 38px;
+    }
+
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4388ff, #a17bff);
+      color: white;
+    }
+
+    .nav-label {
+      color: #65758f;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      margin: 24px 10px 10px;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 11px 12px;
+      margin: 4px 0;
+      color: #aab8ce;
+      border-radius: 9px;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .nav-item.active {
+      background: #1c2c49;
+      color: white;
+    }
+
+    .nav-item span { margin-right: 10px; }
+
+    main {
+      width: 100%;
+      max-width: 1500px;
+      margin: auto;
+      padding: 32px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: clamp(24px, 3vw, 32px);
+      letter-spacing: -1px;
+      margin: 0;
+    }
+
+    h2 { font-size: 16px; margin: 0; }
+
+    .subheading {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 9px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border: 1px solid #235940;
+      background: #102b25;
+      color: #73edb1;
+      border-radius: 20px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 10px #39d98a80;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      min-width: 0;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric-value {
+      font-size: 27px;
+      font-weight: 750;
+      margin: 14px 0 7px;
+      letter-spacing: -.7px;
+    }
+
+    .metric-note {
+      color: #9eabc0;
+      font-size: 11px;
+    }
+
+    .good { color: var(--green); }
+    .blue { color: var(--blue); }
+    .purple { color: var(--purple); }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .tag {
+      padding: 5px 8px;
+      background: #1c2b43;
+      color: #9eb9e8;
+      border-radius: 6px;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .stage {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 8px;
+      text-align: center;
+      background: #10182a;
+    }
+
+    .stage-icon {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .stage-name {
+      font-size: 11px;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .stage-state {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 7px;
+    }
+
+    .stage.complete { border-color: #236247; }
+    .stage.complete .stage-state { color: var(--green); }
+
+    .arrow {
+      align-self: center;
+      color: #647895;
+      font-size: 16px;
+    }
+
+    .notice {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+      margin-top: 15px;
+    }
+
+    .health-list {
+      display: grid;
+      gap: 15px;
+    }
+
+    .health-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .health-label { color: #b8c5d8; }
+
+    .health-value {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--green);
+      white-space: nowrap;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 500;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 15px 10px;
+      border-bottom: 1px solid #202c40;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .pill {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 5px 8px;
+      background: #123426;
+      color: #70e9aa;
+      font-size: 10px;
+    }
+
+    .pill.neutral {
+      background: #263247;
+      color: #c0cde0;
+    }
+
+    .footer {
+      color: #74839b;
+      font-size: 11px;
+      text-align: center;
+      margin-top: 25px;
+    }
+
+    @media (max-width: 1050px) {
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .section-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 650px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { padding: 16px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .brand { margin-bottom: 15px; }
+      .nav-label, aside .nav-item:not(.active) { display: none; }
+      main { padding: 22px 15px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .pipeline { flex-wrap: wrap; }
+      .stage { flex: 1 1 27%; }
+      .arrow { display: none; }
+      .metrics { gap: 10px; }
+      .card { padding: 15px; }
+      .metric-value { font-size: 23px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand"><div class="logo">R</div> rolloutary</div>
+      <div class="nav-label">WORKSPACE</div>
+      <a class="nav-item active" href="#overview"><span>◫</span> Overview</a>
+      <a class="nav-item" href="#pipeline"><span>⑂</span> CI/CD Pipeline</a>
+      <a class="nav-item" href="#cluster"><span>▦</span> Kubernetes</a>
+      <a class="nav-item" href="#deployments"><span>◷</span> Deployments</a>
+      <div class="nav-label">APPLICATION</div>
+      <a class="nav-item" href="/health"><span>♥</span> Health endpoint</a>
+      <a class="nav-item" href="/ready"><span>✓</span> Readiness endpoint</a>
+    </aside>
+
+    <main>
+      <header class="topbar" id="overview">
+        <div>
+          <div class="eyebrow">WORKSPACE / OVERVIEW</div>
+          <h1>DevOps Control Center</h1>
+          <div class="subheading">Your application delivery workflow, in one place.</div>
+        </div>
+        <div class="status"><span class="dot"></span> Public demo online</div>
+      </header>
+
+      <section class="metrics">
+        <article class="card">
+          <div class="metric-label">Application</div>
+          <div class="metric-value good">Online</div>
+          <div class="metric-note">Public Render demo</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">CI/CD Provider</div>
+          <div class="metric-value blue">GitHub</div>
+          <div class="metric-note">GitHub Actions workflow</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Container Registry</div>
+          <div class="metric-value purple">GHCR</div>
+          <div class="metric-note">Docker image publishing</div>
+        </article>
+        <article class="card">
+          <div class="metric-label">Staging Replicas</div>
+          <div class="metric-value">2</div>
+          <div class="metric-note">Configured in local Kubernetes</div>
+        </article>
+      </section>
+
+      <section class="section-grid">
+        <article class="card" id="pipeline">
+          <div class="section-head">
+            <h2>CI/CD Pipeline</h2>
+            <span class="tag">WORKFLOW OVERVIEW</span>
+          </div>
+          <div class="pipeline">
+            <div class="stage complete">
+              <div class="stage-icon">⌘</div>
+              <div class="stage-name">Git Push</div>
+              <div class="stage-state">Configured</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="stage complete">
+              <div class="stage-icon">✓</div>
+              <div class="stage-name">Tests</div>
+              <div class="stage-state">Configured</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="stage complete">
+              <div class="stage-icon">▣</div>
+              <div class="stage-name">Docker</div>
+              <div class="stage-state">Configured</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="stage complete">
+              <div class="stage-icon">◈</div>
+              <div class="stage-name">GHCR</div>
+              <div class="stage-state">Configured</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="stage complete">
+              <div class="stage-icon">☸</div>
+              <div class="stage-name">Kubernetes</div>
+              <div class="stage-state">Configured</div>
+            </div>
+          </div>
+          <p class="notice">
+            This illustrates the configured workflow. Live run status will be connected separately;
+            green stages here do not represent a real-time workflow query.
+          </p>
+        </article>
+
+        <article class="card" id="cluster">
+          <div class="section-head">
+            <h2>Infrastructure Health</h2>
+            <span class="tag">ENDPOINT CHECKS</span>
+          </div>
+          <div class="health-list">
+            <div class="health-row">
+              <span class="health-label">Public dashboard</span>
+              <span class="health-value"><span class="dot"></span> Serving</span>
+            </div>
+            <div class="divider"></div>
+            <div class="health-row">
+              <span class="health-label">Health endpoint</span>
+              <span class="health-value" id="health-status">Checking…</span>
+            </div>
+            <div class="divider"></div>
+            <div class="health-row">
+              <span class="health-label">Readiness endpoint</span>
+              <span class="health-value" id="ready-status">Checking…</span>
+            </div>
+            <div class="divider"></div>
+            <div class="health-row">
+              <span class="health-label">Kubernetes cluster</span>
+              <span class="health-value" style="color:#b8c5d8">Local staging</span>
+            </div>
+          </div>
+          <p class="notice">
+            Endpoint checks are requested from this page. Local Kubernetes details are configuration,
+            not live cluster telemetry.
+          </p>
+        </article>
+      </section>
+
+      <section class="card" id="deployments">
+        <div class="section-head">
+          <h2>Deployment Overview</h2>
+          <span class="tag">PROJECT CONFIGURATION</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Technology</th>
+                <th>Purpose</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Source control</td>
+                <td>GitHub</td>
+                <td>Version control</td>
+                <td><span class="pill">Configured</span></td>
+              </tr>
+              <tr>
+                <td>Automation</td>
+                <td>GitHub Actions</td>
+                <td>Test and deployment workflow</td>
+                <td><span class="pill">Configured</span></td>
+              </tr>
+              <tr>
+                <td>Container image</td>
+                <td>Docker + GHCR</td>
+                <td>Build and publish image</td>
+                <td><span class="pill">Configured</span></td>
+              </tr>
+              <tr>
+                <td>Staging</td>
+                <td>Kubernetes</td>
+                <td>Two replicas and health probes</td>
+                <td><span class="pill neutral">Local cluster</span></td>
+              </tr>
+              <tr>
+                <td>Public demo</td>
+                <td>Render</td>
+                <td>Remote application access</td>
+                <td><span class="pill">Deployed</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="footer">Rolloutary · DevOps deployment demo · <span id="updated-at">Checking endpoints…</span></div>
+    </main>
+  </div>
+
+  <script>
+    async function checkEndpoint(path, elementId, expectedStatus) {
+      const element = document.getElementById(elementId);
+
+      try {
+        const response = await fetch(path, { cache: 'no-store' });
+        const data = await response.json();
+        const ok = response.ok && data.status === expectedStatus;
+
+        element.textContent = ok ? 'Healthy' : 'Unhealthy';
+        element.style.color = ok ? '#39d98a' : '#ff7777';
+      } catch {
+        element.textContent = 'Unavailable';
+        element.style.color = '#ff7777';
+      }
+    }
+
+    Promise.all([
+      checkEndpoint('/health', 'health-status', 'ok'),
+      checkEndpoint('/ready', 'ready-status', 'ready')
+    ]).finally(() => {
+      document.getElementById('updated-at').textContent =
+        'Endpoint checks completed at ' + new Date().toLocaleTimeString();
+    });
+  </script>
+</body>
+</html>

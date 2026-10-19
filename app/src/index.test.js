@@ -29,19 +29,24 @@ async function startTestServer() {
   };
 }
 
-test('GET / returns the Rolloutary welcome message', async () => {
+
+test('GET / returns the Rolloutary dashboard HTML', async () => {
   const app = await startTestServer();
 
   try {
     const response = await fetch(`${app.baseUrl}/`);
-    const body = await response.json();
+    const body = await response.text();
 
     assert.equal(response.status, 200);
-    assert.equal(body.message, 'Welcome to Rolloutary');
+    assert.match(response.headers.get('content-type'), /text\/html/);
+    assert.match(body, /DevOps Control Center/);
+    assert.match(body, /CI\/CD Pipeline/);
+    assert.match(body, /Infrastructure Health/);
   } finally {
     await app.close();
   }
 });
+
 
 test('GET /health returns status and uptime', async () => {
   const app = await startTestServer();
