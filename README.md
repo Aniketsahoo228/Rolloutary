@@ -1,7 +1,7 @@
 
 # Rolloutary
 
-### Cloud-Native Release Engineering Platform
+
 
 Rolloutary is a DevOps engineering project that automates application testing, Docker image publishing, Kubernetes staging deployments, and post-deployment verification using GitHub Actions.
 
