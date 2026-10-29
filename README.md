@@ -202,3 +202,4 @@ Production readiness, high availability, security guarantees, and performance ta
 ## License
 
 MIT. See the `LICENSE` file for the applicable terms.
+Rolloutary CI/CD staging deployment verification.
