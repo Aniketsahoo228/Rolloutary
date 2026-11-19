@@ -299,14 +299,35 @@
         stepList.appendChild(none);
         return;
       }
-      job.steps.forEach((step) => {
+      const visibleSteps = job.steps.filter((step) => {
+        const name = String(step.name || '').trim().toLowerCase();
+        return !name.startsWith('post ') && name !== 'complete job';
+      });
+      visibleSteps.forEach((step) => {
         const row = document.createElement('div');
         row.className = 'step-row';
         const number = document.createElement('span');
         number.className = 'step-number';
         number.textContent = step.number;
         const name = document.createElement('span');
-        name.textContent = step.name;
+        const friendlyNames = {
+          'Set up job': 'Prepare the automation worker',
+          'Checkout repository': 'Download the latest project code',
+          'Set up pnpm': 'Prepare the package manager',
+          'Set up Node.js': 'Prepare the Node.js runtime',
+          'Install dependencies': 'Install the project libraries',
+          'Check JavaScript syntax': 'Check the code for syntax errors',
+          'Run unit tests': 'Run automated tests',
+          'Set up Docker Buildx': 'Prepare the Docker image builder',
+          'Log in to GitHub Container Registry': 'Sign in to the image registry',
+          'Extract image metadata': 'Create the image version label',
+          'Build and publish image': 'Package the app and upload its image',
+          'Verify Kubernetes connection': 'Check that Kubernetes is reachable',
+          'Deploy published image': 'Release the new image to staging',
+          'Verify rollout': 'Confirm that the new version is healthy',
+        };
+        name.textContent = friendlyNames[step.name] || step.name;
+        name.title = step.name;
         const stepTime = document.createElement('span');
         stepTime.className = 'step-time';
         stepTime.textContent = `${statusLabels[stateFor(step)] || stateFor(step)} · ${duration(step.startedAt, step.completedAt)}`;
